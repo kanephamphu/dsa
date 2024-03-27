@@ -15,7 +15,7 @@ export class ConsistentHashing {
     ring: Map<number, string> = new Map();
     keys: number[] = [];
     SEPERATOR: string = "-";
-    totalAnglesNumber: number = 1200;
+    totalAnglesNumber: number = 360;
     databases: Map<string, Map<string, Data>> = new Map();
     removedDatabases: Map<string, Map<string, Data>> = new Map();
 
@@ -147,11 +147,12 @@ consistentHash.addData({
     name: "gax,xasd,x,"
 } as Data);
 
-console.log(consistentHash.getData("Test 2"));
+// console.log(consistentHash.getData("Test 2"));
+// console.log(consistentHash.getData("Test 1"));
 
-consistentHash.removeNode("Node 3");
+// consistentHash.removeNode("Node 3");
 
-console.log(consistentHash.getData("Test 2"));
+// console.log(consistentHash.getData("Test 2"));
 
 consistentHash.migrateDatabase();
 
