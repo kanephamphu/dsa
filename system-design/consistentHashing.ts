@@ -19,32 +19,31 @@ export class ConsistentHashing {
     databases: Map<string, Map<string, Data>> = new Map();
     removedDatabases: Map<string, Map<string, Data>> = new Map();
 
-    addNode(nodeId: string): void {
+    addDatabase(databaseId: string): void {
         for (let i = 0; i < this.totalAnglesNumber; ++i) {
-            let replica_key = this.hash(`${nodeId}${this.SEPERATOR}${i.toString()}`);
-            this.ring.set(replica_key, nodeId);
+            let nodeId = this.hash(`${databaseId}${this.SEPERATOR}${i.toString()}`);
+            this.ring.set(nodeId, databaseId);
         }
 
-        this.databases.set(nodeId, new Map());
+        this.databases.set(databaseId, new Map());
         this.keys = Array.from(this.ring.keys()).sort((a, b) => a - b);
     }
 
-    removeNode(nodeId: string) {
+    removeDatabase(databaseId: string) {
         for (let i = 0; i < this.totalAnglesNumber; ++i) {
-            let replica_key = this.hash(`${nodeId}${this.SEPERATOR}${i.toString()}`);
-            this.ring.delete(replica_key);
+            let nodeId = this.hash(`${databaseId}${this.SEPERATOR}${i.toString()}`);
+            this.ring.delete(nodeId);
         }
 
-        const removedDatabase: Map<string, Data> = this.databases.get(nodeId);
-        this.databases.delete(nodeId);
-        this.removedDatabases.set(nodeId, removedDatabase);
+        const removedDatabase: Map<string, Data> = this.databases.get(databaseId);
+        this.databases.delete(databaseId);
+        this.removedDatabases.set(databaseId, removedDatabase);
 
         this.keys = Array.from(this.ring.keys()).sort((a, b) => a - b);
     }
 
     getData(keyOfData: string): Data {
-        console.log(this.ring);
-        const databaseId: string = this.getNode(keyOfData);
+        const databaseId: string = this.getServer(keyOfData);
         const database = this.databases?.get(databaseId);
         const record = database?.get(keyOfData);
 
@@ -52,14 +51,14 @@ export class ConsistentHashing {
     }
 
     addData(record: Data) {
-        const nodeId = this.getNode(record.id);
-        const database: Map<string, Data> = this.databases.get(nodeId);
+        const databaseId = this.getServer(record.id);
+        const database: Map<string, Data> = this.databases.get(databaseId);
 
         database.set(record.id, record);
-        this.databases.set(nodeId, database);
+        this.databases.set(databaseId, database);
     }
 
-    getNode(keyOfData: string): string {
+    getServer(keyOfData: string): string {
         if (!this.ring.size) {
             return null;
         }
@@ -78,14 +77,28 @@ export class ConsistentHashing {
     migrateDatabase() {
         const migratedRecords: MigratedDataInformation[] = [];
 
-        for (let [nodeId, database] of this.databases) {
+        for (const [serverId, database] of this.databases) {
             for (let [recordId,] of database) {
-                const newNodeId = this.getNode(recordId);
+                const newNodeId = this.getServer(recordId);
 
-                if (nodeId !== newNodeId) {
+                if (serverId !== newNodeId) {
                     migratedRecords.push({
                         id: recordId,
-                        currentNodeId: nodeId,
+                        currentNodeId: serverId,
+                        newNodeId: newNodeId
+                    });
+                }
+            }
+        }
+
+        for (const [serverId, database] of this.removedDatabases) {
+            for (let [recordId,] of database) {
+                const newNodeId = this.getServer(recordId);
+
+                if (serverId !== newNodeId) {
+                    migratedRecords.push({
+                        id: recordId,
+                        currentNodeId: serverId,
                         newNodeId: newNodeId
                     });
                 }
@@ -102,6 +115,7 @@ export class ConsistentHashing {
                 this.databases.get(migratedRecord.currentNodeId)?.delete(migratedRecord.id);
             }
         }
+
     }
 
     private hash(key: string): number {
@@ -123,9 +137,9 @@ export class ConsistentHashing {
 
 const consistentHash: ConsistentHashing = new ConsistentHashing();
 
-consistentHash.addNode("Node 1");
-consistentHash.addNode("Node 2");
-consistentHash.addNode("Node 3");
+consistentHash.addDatabase("Node 1");
+consistentHash.addDatabase("Node 2");
+consistentHash.addDatabase("Node 3");
 
 consistentHash.addData({
     id: "Test 1",
@@ -150,7 +164,7 @@ consistentHash.addData({
 // console.log(consistentHash.getData("Test 2"));
 // console.log(consistentHash.getData("Test 1"));
 
-// consistentHash.removeNode("Node 3");
+consistentHash.removeDatabase("Node 3");
 
 // console.log(consistentHash.getData("Test 2"));
 
